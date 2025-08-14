@@ -12,9 +12,10 @@ while true do
         if itemsCrafting[item] == true then
             logInfo(item .. " is already being crafted, skipping...")
         else
-            local success, answer = ae2.requestItem(item, config[1], config[2])
+            local success, answer = ae2.requestItem(item, config[1], config[2], config[3])
             logInfo(answer)
         end
+ 
     end
     os.sleep(sleepInterval)
 end
