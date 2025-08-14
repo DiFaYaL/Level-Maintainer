@@ -3,43 +3,44 @@ local ME = component.me_interface
 
 local AE2 = {}
 
--- Cache for craftables with timestamp
-local craftablesCache = {}
+-- Lightweight cache for specific items only
+local itemCache = {}
 local cacheTimestamp = 0
 local CACHE_DURATION = 600 -- 10 minutes in seconds
 
--- Function to get cached craftables or refresh if needed
-local function getCachedCraftables()
+-- Function to get or cache a specific craftable item
+local function getCraftableForItem(itemName)
     local currentTime = os.time()
     
-    -- Check if cache is still valid (within 10 minutes)
-    if currentTime - cacheTimestamp < CACHE_DURATION and next(craftablesCache) ~= nil then
-        return craftablesCache
+    -- Check if we have a cached version of this specific item and it's still valid
+    if itemCache[itemName] and currentTime - cacheTimestamp < CACHE_DURATION then
+        return itemCache[itemName]
     end
     
-    -- Cache is expired or empty, refresh it
-    local allCraftables = ME.getCraftables()
-    craftablesCache = {}
-    
-    -- Index craftables by label for faster lookup
-    for _, craftable in pairs(allCraftables) do
-        local itemStack = craftable.getItemStack()
-        if itemStack and itemStack.label then
-            craftablesCache[itemStack.label] = craftable
-        end
+    -- If cache is too old, clear it completely to save memory
+    if currentTime - cacheTimestamp >= CACHE_DURATION then
+        itemCache = {}
+        cacheTimestamp = currentTime
     end
     
-    cacheTimestamp = currentTime
-    return craftablesCache
+    -- Look for this specific item in craftables
+    local craftables = ME.getCraftables({["label"] = itemName})
+    if #craftables >= 1 then
+        itemCache[itemName] = craftables[1] -- Cache only this one item
+        return craftables[1]
+    end
+    
+    itemCache[itemName] = nil -- Cache that it's not craftable
+    return nil
 end
 
 function AE2.requestItem(name, threshold, count)
-    local cachedCraftables = getCachedCraftables()
-    local craftable = cachedCraftables[name]
+    local craftable = getCraftableForItem(name)
 
     if craftable then
         local item = craftable.getItemStack()
         if threshold ~= nil then
+            -- Use the newer getItemInNetwork function
             local itemInSystem = ME.getItemInNetwork(name)
             if itemInSystem ~= nil and itemInSystem.size > threshold then 
                 return table.unpack({false, "The amount of " .. itemInSystem.label .. " exceeds threshold! Aborting request."})
@@ -77,7 +78,7 @@ end
 
 -- Function to manually clear the cache if needed
 function AE2.clearCache()
-    craftablesCache = {}
+    itemCache = {}
     cacheTimestamp = 0
 end
 
