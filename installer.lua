@@ -1,14 +1,13 @@
 local shell = require("shell")
 local filesystem = require("filesystem")
-local scripts = {"src/AE2.lua", "src/Utility.lua", "Maintainer.lua"}
-
+local scripts = {"src/AE2.lua", "src/Utility.lua", "Maintainer.lua", "Pattern.lua"}
 local paths = {"src", "lib"}
 
 local function exists(filename)
     return filesystem.exists(shell.getWorkingDirectory() .. "/" .. filename)
 end
 
-local repo = "https://raw.githubusercontent.com/Echoloquate/Level-Maintainer/";
+local repo = "https://raw.githubusercontent.com/DiFaYaL/Level-Maintainer/";
 local branch = "master"
 
 for i = 1, #paths do
