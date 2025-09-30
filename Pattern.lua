@@ -3,17 +3,16 @@ local sides = require "sides"
 local filesystem = require "filesystem"
 
 -- Настройки
-local chestSide = sides.top                 -- Сторона сундука для сканирования
-local configPath = "/home/config.lua"      -- Путь к config.lua
+local chestSide = sides.top
+local configPath = "/home/config.lua"
 
 -- Настройки для предметов и жидкостей
-local ITEM_BATCH_SIZE = 64                  -- batch_size для обычных предметов
-local ITEM_THRESHOLD = nil                  -- threshold для обычных предметов
+local ITEM_BATCH_SIZE = 64
+local ITEM_THRESHOLD = 128
 
-local FLUID_BATCH_SIZE = 1                  -- batch_size для жидкостей
-local FLUID_THRESHOLD = 1000000            -- threshold для жидкостей
+local FLUID_BATCH_SIZE = 1
+local FLUID_THRESHOLD = 1000
 
--- Загрузка существующего config.lua
 local function loadConfig()
     local cfg = {}
     if filesystem.exists(configPath) then
@@ -30,23 +29,6 @@ local function loadConfig()
     return cfg
 end
 
--- Сериализация таблицы
-local function serializeTable(tbl, indent)
-    indent = indent or 0
-    local result = {}
-    local ind = string.rep("  ", indent)
-    table.insert(result, "{")
-    for k,v in pairs(tbl) do
-        local key = type(k)=="string" and string.format("[\"%s\"]", k) or tostring(k)
-        table.insert(result, string.format("%s%s = {%s},", ind.."  ", key,
-            (v[1] and tostring(v[1]) or "nil") .. ", " .. tostring(v[2] or 1) .. (v[3] and ', "'..v[3]..'"' or "")
-        ))
-    end
-    table.insert(result, ind.."}")
-    return table.concat(result, "\n")
-end
-
--- Сканирование сундука и формирование структуры для config.lua
 local function scanChest(existingItems)
     if not component.isAvailable("inventory_controller") then
         error("Inventory Controller не найден!")
@@ -67,7 +49,6 @@ local function scanChest(existingItems)
                 local batch_size = ITEM_BATCH_SIZE
                 local fluid_name = nil
 
-                -- Если жидкость (drop of ...), формируем threshold и fluid_name
                 if string.find(item_name:lower(), "drop") then
                     threshold = FLUID_THRESHOLD
                     batch_size = FLUID_BATCH_SIZE
@@ -82,30 +63,68 @@ local function scanChest(existingItems)
     return items, addedCount
 end
 
--- Сохраняем cfg["items"]
-local function saveConfigItems(cfg)
-    local file, err = io.open(configPath, "w")
-    if not file then error("Ошибка записи config.lua: "..tostring(err)) end
-
-    file:write("local cfg = {}\n\n")
-    file:write("cfg[\"items\"] = "..serializeTable(cfg.items).."\n\n")
-    file:write("cfg[\"sleep\"] = "..tostring(cfg.sleep).."\n\n")
-    file:write("return cfg\n")
-    file:close()
+local function serializeItems(tbl)
+    local result = {}
+    local ind = "  "
+    table.insert(result, "{")
+    for k,v in pairs(tbl) do
+        local key = string.format("[\"%s\"]", k)
+        table.insert(result, string.format("%s%s = {%s},", ind, key,
+            (v[1] and tostring(v[1]) or "nil") .. ", " .. tostring(v[2] or 1) .. (v[3] and ', "'..v[3]..'"' or "")
+        ))
+    end
+    table.insert(result, "}")
+    return table.concat(result, "\n")
 end
 
--- Главная функция
+local function updateConfigItems(newItems)
+    local content = ""
+    local f = io.open(configPath, "r")
+    if f then
+        content = f:read("*a")
+        f:close()
+    end
+
+    local startPos, bracePos = content:find('cfg%["items"%]%s*=%s*{')
+    if not startPos then
+        error("Не найден массив cfg[\"items\"] в config.lua")
+    end
+
+    local openBraces = 1
+    local i = bracePos + 1
+    local endPos = nil
+    while i <= #content do
+        local c = content:sub(i,i)
+        if c == "{" then openBraces = openBraces + 1
+        elseif c == "}" then
+            openBraces = openBraces - 1
+            if openBraces == 0 then
+                endPos = i
+                break
+            end
+        end
+        i = i + 1
+    end
+    if not endPos then error("Не удалось определить конец массива cfg[\"items\"]") end
+
+    local serialized = serializeItems(newItems)
+    local updatedContent = content:sub(1, startPos-1) .. "cfg[\"items\"] = " .. serialized .. content:sub(endPos+1)
+
+    local f = io.open(configPath, "w")
+    f:write(updatedContent)
+    f:close()
+end
+
 local function main()
-    print("Сканирование сундука"..tostring(chestSide).." ...")
+    print("Сканирование сундука...")
     local cfg = loadConfig()
     local newItems, addedCount = scanChest(cfg.items)
 
-    -- Добавляем новые предметы к существующим
     for k,v in pairs(newItems) do
         cfg.items[k] = v
     end
 
-    saveConfigItems(cfg)
+    updateConfigItems(cfg.items)
     print("config.lua обновлен, добавлено предметов: "..tostring(addedCount))
 end
 
