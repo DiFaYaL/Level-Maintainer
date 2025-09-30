@@ -3,34 +3,29 @@ local ME = component.me_interface
 
 local AE2 = {}
 
--- Lightweight cache for specific items only
 local itemCache = {}
 local cacheTimestamp = 0
-local CACHE_DURATION = 600 -- 10 minutes in seconds
+local CACHE_DURATION = 600 -- 10 минут
 
--- Function to get or cache a specific craftable item
 local function getCraftableForItem(itemName)
     local currentTime = os.time()
-    
-    -- Check if we have a cached version of this specific item and it's still valid
+
     if itemCache[itemName] and currentTime - cacheTimestamp < CACHE_DURATION then
         return itemCache[itemName]
     end
-    
-    -- If cache is too old, clear it completely to save memory
+
     if currentTime - cacheTimestamp >= CACHE_DURATION then
         itemCache = {}
         cacheTimestamp = currentTime
     end
-    
-    -- Look for this specific item in craftables
+
     local craftables = ME.getCraftables({["label"] = itemName})
     if #craftables >= 1 then
-        itemCache[itemName] = craftables[1] -- Cache only this one item
+        itemCache[itemName] = craftables[1]
         return craftables[1]
     end
-    
-    itemCache[itemName] = nil -- Cache that it's not craftable
+
+    itemCache[itemName] = nil
     return nil
 end
 
@@ -39,44 +34,35 @@ function AE2.requestItem(name, threshold, count, fluidName)
 
     if craftable then
         local item = craftable.getItemStack()
+        local itemInSystem = nil
+
+        -- Threshold проверка (для жидкостей и обычных предметов)
         if threshold ~= nil then
-            local itemInSystem = nil
-            
-            if fluidName then
-                local fluidTag = '{Fluid:' .. fluidName .. '}'
-                itemInSystem = ME.getItemInNetwork("ae2fc:fluid_drop", 0, fluidTag)
-            else
-                if item.name then
-                    if item.tag then
-                        itemInSystem = ME.getItemInNetwork(item.name, item.damage or 0, item.tag)
-                    end
-                    
-                    -- Fallback: try with just the internal name and damage
-                    if itemInSystem == nil then
-                        itemInSystem = ME.getItemInNetwork(item.name, item.damage or 0)
-                    end
-                end
+            local itemsInSystem = ME.getItemsInNetwork({["label"] = name})
+            if #itemsInSystem > 0 then
+                itemInSystem = itemsInSystem[1]
             end
-            
-            if itemInSystem ~= nil and itemInSystem.size >= threshold then 
-                return table.unpack({false, "The amount of " .. (itemInSystem.label or name) .. " (" .. itemInSystem.size .. ") meets or exceeds threshold (" .. threshold .. ")! Aborting request."})
+
+            if itemInSystem and itemInSystem.size >= threshold then
+                return false, "The amount of " .. (itemInSystem.label or name) .. 
+                    " (" .. itemInSystem.size .. ") meets or exceeds threshold (" .. threshold .. ")! Aborting request."
             end
         end
-        
+
+        -- Запрос крафта
         if item.label == name then
             local craft = craftable.request(count)
+            while craft.isComputing() do os.sleep(1) end
 
-            while craft.isComputing() == true do
-                os.sleep(1)
-            end
             if craft.hasFailed() then
-                return table.unpack({false, "Failed to request " .. name .. " x " .. count})
+                return false, "Failed to request " .. name .. " x " .. count
             else
-                return table.unpack({true, "Requested " .. name .. " x " .. count})
+                return true, "Requested " .. name .. " x " .. count
             end
         end
     end
-    return table.unpack({false, name .. " is not craftable!"})
+
+    return false, name .. " is not craftable!"
 end
 
 function AE2.checkIfCrafting()
@@ -88,11 +74,9 @@ function AE2.checkIfCrafting()
             items[finaloutput.label] = true
         end
     end
-
     return items
 end
 
--- Function to manually clear the cache if needed
 function AE2.clearCache()
     itemCache = {}
     cacheTimestamp = 0
