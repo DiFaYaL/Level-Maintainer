@@ -6,7 +6,7 @@ local filesystem = require "filesystem"
 local chestSide = sides.top
 local configPath = "/home/config.lua"
 
--- Настройки для предметов и жидкостей
+-- Значения по умолчанию
 local ITEM_BATCH_SIZE = 64
 local ITEM_THRESHOLD = 128
 
@@ -27,6 +27,17 @@ local function loadConfig()
     if not cfg.items then cfg.items = {} end
     if not cfg.sleep then cfg.sleep = 10 end
     return cfg
+end
+
+-- Функция для запроса значения у пользователя
+local function askValue(prompt, default)
+    io.write(prompt .. " [" .. tostring(default) .. "]: ")
+    local input = io.read()
+    if input == nil or input == "" then
+        return default
+    else
+        return tonumber(input) or default
+    end
 end
 
 local function scanChest(existingItems)
@@ -54,6 +65,11 @@ local function scanChest(existingItems)
                     batch_size = FLUID_BATCH_SIZE
                     fluid_name = item_name:lower():gsub("drop of ", ""):gsub(" ", "_")
                 end
+
+                -- Запрос у пользователя значений
+                print("\nНовый предмет найден: " .. item_name)
+                threshold = askValue(item_name .. " threshold", threshold)
+                batch_size = askValue(item_name .. " batch_size", batch_size)
 
                 items[item_name] = fluid_name and {threshold, batch_size, fluid_name} or {threshold, batch_size}
                 addedCount = addedCount + 1
@@ -125,7 +141,7 @@ local function main()
     end
 
     updateConfigItems(cfg.items)
-    print("config.lua обновлен, добавлено предметов: "..tostring(addedCount))
+    print("\nconfig.lua обновлен, добавлено предметов: "..tostring(addedCount))
 end
 
 main()
