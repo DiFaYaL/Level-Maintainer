@@ -17,7 +17,7 @@ Also supports having a threshold.
 Download it
 
 ```bash
-wget raw.githubusercontent.com/DiFaYaL/Level-Maintainer/master/installer.lua && installer
+wget https://raw.githubusercontent.com/DiFaYaL/Level-Maintainer/master/installer.lua && installer
 ```
 
 Run it
