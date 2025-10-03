@@ -1,44 +1,42 @@
 local term = require("term")
-local thread = require("thread")
 local event = require("event")
 local ae2 = require("src.AE2")
 local cfg = require("config")
-local util = require("src.Utility")
 
 local items = cfg.items
 local sleepInterval = cfg.sleep
 
-local function monitorKeys()
-    while true do
-        local _, _, _, code = event.pull("key_down")
-        if code == 16 then -- Q
-            os.exit(0.5)
-        end
-    end
+local function exitMaintainer()
+    term.clear()
+    term.setCursor(1, 1)
+    print("Exit from Maintainer...")
+    os.exit(0.5)
 end
 
-thread.create(monitorKeys)
+local function logInfo(msg)
+    if type(msg) == "string" then
+        print("[" .. os.date("%H:%M:%S") .. "] " .. msg)
+    end
+end
 
 while true do
     term.clear()
     term.setCursor(1, 1)
-    print("Нажмите Q для выхода. Время отмены завязано на sleepInterval в config.lua")
+    print("Press Q to exit. Item inspection interval: "..sleepInterval.." сек.\n")
 
     local itemsCrafting = ae2.checkIfCrafting()
 
-    for item, config in pairs(items) do
-        if itemsCrafting[item] == true then
+    for item, cfgItem in pairs(items) do
+        if itemsCrafting[item] then
             logInfo(item .. " is already being crafted, skipping...")
         else
-            local success, answer = ae2.requestItem(item, config[1], config[2], config[3])
-            logInfo(answer)
+            local success, msg = ae2.requestItem(item, cfgItem[1], cfgItem[2], cfgItem[3])
+            logInfo(item .. ": " .. msg)
         end
     end
 
-    os.sleep(sleepInterval)
-
-    local _, _, _, code = term.pull(0, "key_down")
-    if code == 16 then -- Q
-        os.exit(0.5)
+    local _, _, _, code = event.pull(sleepInterval, "key_down")
+    if code == 0x10 then -- Q
+        exitMaintainer()
     end
 end
