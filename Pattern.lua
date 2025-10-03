@@ -5,6 +5,7 @@ local filesystem = require "filesystem"
 -- Настройки
 local chestSide = sides.top
 local configPath = "/home/config.lua"
+local shrcPath = "/home/.shrc"
 
 -- Значения по умолчанию
 local ITEM_BATCH_SIZE = 64
@@ -29,7 +30,6 @@ local function loadConfig()
     return cfg
 end
 
--- Функция для запроса значения у пользователя
 local function askValue(prompt, default)
     io.write(prompt .. " [" .. tostring(default) .. "]: ")
     local input = io.read()
@@ -66,7 +66,6 @@ local function scanChest(existingItems)
                     fluid_name = item_name:lower():gsub("drop of ", ""):gsub(" ", "_")
                 end
 
-                -- Запрос у пользователя значений
                 print("\nНовый предмет найден: " .. item_name)
                 threshold = askValue(item_name .. " threshold", threshold)
                 batch_size = askValue(item_name .. " batch_size", batch_size)
@@ -131,6 +130,25 @@ local function updateConfigItems(newItems)
     f:close()
 end
 
+local function ensureAutorun()
+    local f = io.open(shrcPath, "r")
+    local content = f:read("*a")
+    f:close()
+
+    if content:match("Maintainer") then
+        return
+    end
+
+    io.write("Добавить Maintainer.lua в автозапуск? (y/n): ")
+    local answer = io.read()
+    if answer and answer:lower() == "y" then
+        local fw = io.open(shrcPath, "a")
+        fw:write("\nMaintainer\n")
+        fw:close()
+        print("Maintainer.lua добавлен в автозапуск")
+    end
+end
+
 local function main()
     print("Сканирование сундука...")
     local cfg = loadConfig()
@@ -142,6 +160,9 @@ local function main()
 
     updateConfigItems(cfg.items)
     print("\nconfig.lua обновлен, добавлено предметов: "..tostring(addedCount))
+
+    ensureAutorun()
+    os.execute("reboot")
 end
 
 main()
