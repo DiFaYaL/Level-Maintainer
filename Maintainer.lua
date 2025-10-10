@@ -28,7 +28,7 @@ while true do
 
     for item, cfgItem in pairs(items) do
         if itemsCrafting[item] then
-            logInfo(item .. " is already being crafted, skipping...")
+            logInfo(item .. ": is already being crafted, skipping...")
         else
             local success, msg = ae2.requestItem(item, cfgItem[1], cfgItem[2], cfgItem[3])
             logInfo(item .. ": " .. msg)
