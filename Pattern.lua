@@ -56,7 +56,6 @@ local function loadConfig()
     return cfg
 end
 
--- Функция ввода с поддержкой сокращений
 local function askValue(prompt, default)
     io.write(prompt .. " [" .. tostring(default) .. "]: ")
     local input = io.read()
