@@ -10,9 +10,35 @@ local shrcPath = "/home/.shrc"
 -- Значения по умолчанию
 local ITEM_BATCH_SIZE = 64
 local ITEM_THRESHOLD = 128
-
 local FLUID_BATCH_SIZE = 1
 local FLUID_THRESHOLD = 1000
+
+local function parseExpression(str)
+    if type(str) ~= "string" then return nil, "not a string" end
+
+    -- Поддержка 1k, 1m, 1g, 1t, 1p
+    str = str:gsub("([0-9%.]+)%s*[kK]", "%1*1000")
+    str = str:gsub("([0-9%.]+)%s*[mM]", "%1*1000000")
+    str = str:gsub("([0-9%.]+)%s*[gG]", "%1*1000000000")
+    str = str:gsub("([0-9%.]+)%s*[tT]", "%1*1000000000000")
+    str = str:gsub("([0-9%.]+)%s*[pP]", "%1*1000000000000000")
+
+    str = str:gsub("%s+", "")
+
+    if str:match("[^0-9%+%-%*/%.%(%)]+") then
+        return nil, "invalid characters"
+    end
+
+    local f, err = load("return " .. str)
+    if not f then return nil, err end
+
+    local ok, result = pcall(f)
+    if not ok or type(result) ~= "number" then
+        return nil, "invalid expression"
+    end
+
+    return math.floor(result)
+end
 
 local function loadConfig()
     local cfg = {}
@@ -30,14 +56,20 @@ local function loadConfig()
     return cfg
 end
 
+-- Функция ввода с поддержкой сокращений
 local function askValue(prompt, default)
     io.write(prompt .. " [" .. tostring(default) .. "]: ")
     local input = io.read()
     if input == nil or input == "" then
         return default
-    else
-        return tonumber(input) or default
     end
+
+    local value, err = parseExpression(input)
+    if not value then
+        print("Ошибка: " .. tostring(err) .. ". Используется значение по умолчанию.")
+        return default
+    end
+    return value
 end
 
 local function scanChest(existingItems)
@@ -53,7 +85,7 @@ local function scanChest(existingItems)
 
     for slot=1,size do
         local stack = inv.getStackInSlot(chestSide, slot)
-        if stack and stack.size>0 then
+        if stack and stack.size > 0 then
             local item_name = stack.label or stack.name
             if not existingItems[item_name] then
                 local threshold = ITEM_THRESHOLD
@@ -149,6 +181,7 @@ local function ensureAutorun()
     end
 end
 
+-- Главная функция
 local function main()
     print("Сканирование сундука...")
     local cfg = loadConfig()
