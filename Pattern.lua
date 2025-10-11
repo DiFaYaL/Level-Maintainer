@@ -71,6 +71,26 @@ local function askValue(prompt, default)
     return value
 end
 
+local function serealizeTable(tbl) 
+    local str = "{ ";
+    for k,v in pairs(tbl) do
+        str = str .. "" .. k .. " = \"" .. v .. "\", "
+    end
+    str = str:sub(1, -3)
+    local str = str .."}"
+    return str
+end
+
+local function printTable(tbl)
+
+    for k, v in pairs(tbl) do
+            
+            print(k, v)
+
+    end
+
+end
+
 local function scanChest(existingItems)
     if not component.isAvailable("inventory_controller") then
         error("Inventory Controller не найден!")
@@ -84,6 +104,7 @@ local function scanChest(existingItems)
 
     for slot=1,size do
         local stack = inv.getStackInSlot(chestSide, slot)
+       -- print(printTable(stack))
         if stack and stack.size > 0 then
             local item_name = stack.label or stack.name
             if not existingItems[item_name] then
@@ -100,8 +121,8 @@ local function scanChest(existingItems)
                 print("\nНовый предмет найден: " .. item_name)
                 threshold = askValue(item_name .. " threshold", threshold)
                 batch_size = askValue(item_name .. " batch_size", batch_size)
-
-                items[item_name] = fluid_name and {threshold, batch_size, fluid_name} or {threshold, batch_size}
+                   -- print(printTable(stack))
+                items[item_name] = fluid_name and {{fluid_tag = stack.fluidDrop.name}, threshold, batch_size} or {{item_id = stack.name, item_meta = stack.damage}, threshold, batch_size}
                 addedCount = addedCount + 1
             end
         end
@@ -116,7 +137,11 @@ local function serializeItems(tbl)
     for k,v in pairs(tbl) do
         local key = string.format("[\"%s\"]", k)
         table.insert(result, string.format("%s%s = {%s},", ind, key,
-            (v[1] and tostring(v[1]) or "nil") .. ", " .. tostring(v[2] or 1) .. (v[3] and ', "'..v[3]..'"' or "")
+            (v[1] and serealizeTable(v[1]) or "nil") .. 
+            ", " .. 
+            tostring(v[2] or 1) ..
+            ", " ..  
+            tostring(v[3] or 0)
         ))
     end
     table.insert(result, "}")
