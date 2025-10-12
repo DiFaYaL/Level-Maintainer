@@ -71,7 +71,7 @@ local function askValue(prompt, default)
     return value
 end
 
-local function serealizeTable(tbl) 
+local function serializeTable(tbl) 
     local str = "{ ";
     for k,v in pairs(tbl) do
         str = str .. "" .. k .. " = \"" .. v .. "\", "
@@ -125,7 +125,7 @@ local function serializeItems(tbl)
     for k,v in pairs(tbl) do
         local key = string.format("[\"%s\"]", k)
         table.insert(result, string.format("%s%s = {%s},", ind, key,
-            (v[1] and serealizeTable(v[1]) or "nil") .. 
+            (v[1] and serializeTable(v[1]) or "nil") .. 
             ", " .. 
             tostring(v[2] or 1) ..
             ", " ..  
